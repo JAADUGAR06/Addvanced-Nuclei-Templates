@@ -2,7 +2,7 @@ id: graphql-introspection
 
 info:
   name: GraphQL Introspection Query
-  author: DAAKU
+  author: UMESH
   severity: info
   description: Detects exposed GraphQL endpoints with introspection enabled
   tags: graphql,api,misconfig
