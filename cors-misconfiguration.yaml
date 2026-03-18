@@ -2,7 +2,7 @@ id: cors-misconfiguration
 
 info:
   name: CORS Misconfiguration Detection
-  author: DAAKU
+  author: UMESH
   severity: medium
   description: Detects permissive CORS policies allowing arbitrary origins
   tags: misconfig,cors,web
