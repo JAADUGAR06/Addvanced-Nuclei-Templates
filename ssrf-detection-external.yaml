@@ -2,7 +2,7 @@ id: ssrf-detection-external
 
 info:
   name: SSRF Detection with External Callback
-  author: DAAKU
+  author: UMESH
   severity: high
   description: Detects SSRF vulnerabilities by making the server request an external URL
   tags: ssrf,oast,server-side
