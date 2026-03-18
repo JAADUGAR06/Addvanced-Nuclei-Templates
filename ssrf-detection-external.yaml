@@ -1,0 +1,31 @@
+id: ssrf-detection-external
+
+info:
+  name: SSRF Detection with External Callback
+  author: DAAKU
+  severity: high
+  description: Detects SSRF vulnerabilities by making the server request an external URL
+  tags: ssrf,oast,server-side
+
+variables:
+  callback: "{{interactsh-url}}/ssrf-{{randstr}}"
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/fetch?url=http://{{callback}}"
+      - "{{BaseURL}}/proxy?target=http://{{callback}}/api"
+      - "{{BaseURL}}/image?src=http://{{callback}}/image.jpg"
+      - "{{BaseURL}}/webhook?url=http://{{callback}}/webhook"
+      
+    headers:
+      User-Agent: "Mozilla/5.0 (SSRF-Tester) Nuclei/3.0"
+      X-Forwarded-For: "{{callback}}"
+      Referer: "http://{{callback}}/"
+
+    matchers:
+      - type: word
+        part: interactsh_protocol
+        words:
+          - "http"
+          - "dns"
