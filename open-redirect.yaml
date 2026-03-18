@@ -2,7 +2,7 @@ id: open-redirect
 
 info:
   name: Open Redirect Vulnerability
-  author: DAAKU
+  author: UMESH
   severity: medium
   description: Detects open redirects with actual redirect verification
   tags: redirect,ssrf,oast
@@ -32,4 +32,4 @@ http:
     extractors:
       - type: dsl
         dsl:
-          - "location"  # Extracts the redirect URL
+          - "location" 
