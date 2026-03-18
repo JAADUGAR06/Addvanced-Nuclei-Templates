@@ -304,8 +304,8 @@ http:
   extractors:
     - type: dsl
       dsl:
-        - "body"  # Extract full body for proof
-        - "header"  # Extract headers for header-based XSS
+        - "body"  
+        - "header"  
         
     - type: regex
       part: body
