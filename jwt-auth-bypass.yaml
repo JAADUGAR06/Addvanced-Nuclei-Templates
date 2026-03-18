@@ -2,7 +2,7 @@ id: jwt-auth-bypass
 
 info:
   name: JWT Authentication Bypass
-  author: DAAKU
+  author: UMESH
   severity: critical
   description: Tests JWT implementation for various bypass techniques
   tags: jwt,auth-bypass,api
