@@ -1,0 +1,35 @@
+id: open-redirect
+
+info:
+  name: Open Redirect Vulnerability
+  author: DAAKU
+  severity: medium
+  description: Detects open redirects with actual redirect verification
+  tags: redirect,ssrf,oast
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/redirect?url=https://google.com"
+      - "{{BaseURL}}/out?https://evil.com"
+      - "{{BaseURL}}/link/?target=//evil.com"
+      - "{{BaseURL}}/?next=https://evil.com"
+      - "{{BaseURL}}/api/v1/auth?redirect_uri=https://evil.com/callback"
+
+    matchers-condition: and
+    matchers:
+      - type: dsl
+        dsl:
+          - "contains(tolower(location), 'google.com') || contains(tolower(location), 'evil.com')"
+          
+      - type: status
+        status:
+          - 301
+          - 302
+          - 307
+          - 308
+
+    extractors:
+      - type: dsl
+        dsl:
+          - "location"  # Extracts the redirect URL
