@@ -2,7 +2,7 @@ id: sql-injection-time-based
 
 info:
   name: SQL Injection Time-Based Detection
-  author: DAAKU
+  author: UMESH
   severity: high
   description: Detects blind SQL injection using time delays and verifies with actual data extraction
   tags: sqli,blind,time-based
@@ -25,8 +25,8 @@ http:
     matchers:
       - type: dsl
         dsl:
-          - "duration_1 >= 5"  # First request takes at least 5 seconds
-          - "duration_2 >= 5"  # Second request takes at least 5 seconds
+          - "duration_1 >= 5"  
+          - "duration_2 >= 5"  
           
       - type: word
         part: body
